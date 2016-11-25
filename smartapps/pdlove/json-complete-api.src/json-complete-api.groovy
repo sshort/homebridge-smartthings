@@ -31,7 +31,8 @@ def copyConfig() {
             input "deviceList", "capability.refresh", title: "Most Devices", multiple: true, required: false
             input "sensorList", "capability.sensor", title: "Sensor Devices", multiple: true, required: false
             input "switchList", "capability.switch", title: "All Switches", multiple: true, required: false
-            paragraph "Devices Selected: ${deviceList ? deviceList?.size() : 0}\nSensors Selected: ${sensorList ? sensorList?.size() : 0}\nSwitches Selected: ${switchList ? switchList?.size() : 0}"
+            input "buttonList", "capability.button", title: "All Buttons", multiple: true, required: false
+            paragraph "Devices Selected: ${deviceList ? deviceList?.size() : 0}\nSensors Selected: ${sensorList ? sensorList?.size() : 0}\nSwitches Selected: ${switchList ? switchList?.size() : 0}Buttons Selected: ${buttonList ? buttonList?.size() : 0}"
         }
         section() {
             paragraph "View this SmartApp's configuration to use it in other places."
@@ -51,13 +52,16 @@ def copyConfig() {
 
 def renderDevices() {
     def deviceData = []
-        deviceList.each { 
+    deviceList.each { 
         	deviceData << [name: it.displayName, deviceid: it.id, capabilities: deviceCapabilityList(it), commands: deviceCommandList(it), attributes: deviceAttributeList(it)]
 	}    
-        sensorList.each  { 
+    sensorList.each  { 
         	deviceData << [name: it.displayName, deviceid: it.id, capabilities: deviceCapabilityList(it), commands: deviceCommandList(it), attributes: deviceAttributeList(it)]
 	}
-        switchList.each  { 
+    switchList.each  { 
+        	deviceData << [name: it.displayName, deviceid: it.id, capabilities: deviceCapabilityList(it), commands: deviceCommandList(it), attributes: deviceAttributeList(it)]
+    }			
+    buttonList.each  { 
         	deviceData << [name: it.displayName, deviceid: it.id, capabilities: deviceCapabilityList(it), commands: deviceCommandList(it), attributes: deviceAttributeList(it)]
 	}
     return deviceData
@@ -69,6 +73,8 @@ def findDevice(paramid) {
 	device = sensorList.find { it.id == paramid }
 	if (device) return device
   	device = switchList.find { it.id == paramid }
+	if (device) return device
+	device = buttonList.find { it.id == paramid }
 
 	return device
  }
@@ -180,6 +186,23 @@ def deviceAttribute() {
   	}
 }
 
+def setDeviceAttribute() {
+	def device = findDevice(params.id)
+	def attribute = params.attribute
+	def value = params.value
+	
+	if (!device) {
+		httpError(404, "Device ${params.id} not found")
+	} else {
+		if (!device.hasAttribute (attribute)) {
+			httpError(404, "Device attribute $attribute not found")
+		} else {
+			device.sendEvent(name: attribute, value: value)
+			//"$action"(device, json.type, json.value)		
+        }
+	}
+}
+
 def deviceQuery() {
 	def device = findDevice(params.id)    
     if (!device) { 
@@ -269,6 +292,7 @@ def registerAll() {
 	registerChangeHandler(deviceList)
 	registerChangeHandler(sensorList)
 	registerChangeHandler(switchList)
+	registerChangeHandler(buttonList)
 }
 
 def registerChangeHandler(myList) {
@@ -328,6 +352,7 @@ mappings {
         path("/:id/command/:command")     		{ action: [POST: "deviceCommand"] }
         path("/:id/query")						{ action: [GET: "deviceQuery"] }
         path("/:id/attribute/:attribute") 		{ action: [GET: "deviceAttribute"] }
+        path("/:id/attribute/:attribute/:value"){ action: [PUT: "setDeviceAttribute"] }
         path("/subscribe")                      { action: [GET: "startSubscription"] }
         path("/getUpdates")                     { action: [GET: "getChangeEvents"] }
         path("/unsubscribe")                      { action: [GET: "endSubscription"] }
